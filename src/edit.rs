@@ -38,6 +38,7 @@ use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
 use bevy::ui::ComputedNode;
 use bevy::ui::UiGlobalTransform;
+use bevy::ui::UiScale;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
@@ -111,6 +112,7 @@ pub(crate) fn on_drag_text_input(
     )>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
     input_focus: Res<InputFocus>,
+    ui_scale: Res<UiScale>,
 ) {
     if trigger.button != PointerButton::Primary {
         return;
@@ -133,8 +135,9 @@ pub(crate) fn on_drag_text_input(
 
     let rect = Rect::from_center_size(transform.translation, node.size());
 
-    let position =
-        trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
+    let position = trigger.pointer_location.position / ui_scale.0
+        * node.inverse_scale_factor().recip()
+        - rect.min;
 
     let mut editor = buffer
         .editor
@@ -158,6 +161,7 @@ pub(crate) fn on_text_input_pressed(
     )>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
     mut input_focus: ResMut<InputFocus>,
+    ui_scale: Res<UiScale>,
 ) {
     if trigger.button != PointerButton::Primary {
         return;
@@ -180,8 +184,9 @@ pub(crate) fn on_text_input_pressed(
 
     let rect = Rect::from_center_size(transform.translation, node.size());
 
-    let position =
-        trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
+    let position = trigger.pointer_location.position / ui_scale.0
+        * node.inverse_scale_factor().recip()
+        - rect.min;
 
     let mut editor = buffer
         .editor
@@ -252,6 +257,7 @@ pub fn on_multi_click_set_selection(
     mut multi_click_datas: Query<&mut MultiClickData>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
     mut commands: Commands,
+    ui_scale: Res<UiScale>,
 ) {
     if click.button != PointerButton::Primary {
         return;
@@ -275,8 +281,9 @@ pub fn on_multi_click_set_selection(
     {
         let rect = Rect::from_center_size(transform.translation, node.size());
 
-        let position =
-            click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
+        let position = click.pointer_location.position / ui_scale.0
+            * node.inverse_scale_factor().recip()
+            - rect.min;
         let mut editor = buffer
             .editor
             .borrow_with(&mut text_input_pipeline.font_system);
