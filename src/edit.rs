@@ -16,6 +16,7 @@ use bevy::ecs::entity::Entity;
 use bevy::ecs::message::MessageReader;
 use bevy::ecs::message::MessageWriter;
 use bevy::ecs::observer::On;
+use bevy::ecs::query::With;
 use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -34,6 +35,7 @@ use bevy::picking::events::Move;
 use bevy::picking::events::Pointer;
 use bevy::picking::events::Press;
 use bevy::picking::hover::HoverMap;
+use bevy::picking::hover::PickingInteraction;
 use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
 use bevy::ui::ComputedNode;
@@ -647,5 +649,46 @@ pub fn on_focused_keyboard_input(
                 queue.add(action);
             },
         );
+    }
+}
+
+/// Clears selection on all unfocused text inputs when clicking anywhere.
+pub fn on_press_clear_selection(
+    _trigger: On<Pointer<Press>>,
+    input_focus: Res<InputFocus>,
+    mut query: Query<(Entity, &mut TextInputBuffer)>,
+    mut text_input_pipeline: ResMut<TextInputPipeline>,
+) {
+    for (entity, mut buffer) in query.iter_mut() {
+        if Some(entity) != input_focus.0 && buffer.editor.selection() != Selection::None {
+            let mut editor = buffer
+                .editor
+                .borrow_with(&mut text_input_pipeline.font_system);
+
+            editor.action(Action::Escape); // clears selection
+        }
+    }
+}
+
+/// If the current focused entity is a text input, but none seems to be clicked, it means
+/// the user clicked elsewhere, so we clear the focus.
+pub(crate) fn on_press_check_focus_loss(
+    _trigger: On<Pointer<Press>>,
+    interactions: Query<(Entity, &PickingInteraction), With<TextInputBuffer>>,
+    mut input_focus: ResMut<InputFocus>,
+) {
+    let interacted_inputs = interactions
+        .iter()
+        .filter(|(_, interaction)| matches!(interaction, PickingInteraction::Pressed))
+        .map(|(entity, _)| entity)
+        .collect::<Vec<_>>();
+
+    if let Some(focused_entity) = input_focus.0 {
+        let focused_input = interactions.get(focused_entity).is_ok();
+
+        if focused_input && !interacted_inputs.contains(&focused_entity) {
+            // clicked elsewhere, clear selection
+            input_focus.clear();
+        }
     }
 }

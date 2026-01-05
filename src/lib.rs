@@ -6,6 +6,7 @@ pub mod text_input_pipeline;
 
 use std::collections::VecDeque;
 
+use crate::edit::{on_press_check_focus_loss, on_press_clear_selection};
 use actions::TextInputAction;
 use bevy::app::{Plugin, PostUpdate};
 use bevy::asset::AssetEventSystems;
@@ -52,6 +53,8 @@ impl Plugin for TextInputPlugin {
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
             .init_resource::<clipboard::Clipboard>()
+            .add_observer(on_press_check_focus_loss)
+            .add_observer(on_press_clear_selection)
             .add_systems(
                 PostUpdate,
                 (
