@@ -44,6 +44,7 @@ use bevy::ui::UiScale;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
+use cosmic_text::Cursor;
 use cosmic_text::Edit;
 use cosmic_text::Editor;
 use cosmic_text::Motion;
@@ -98,6 +99,38 @@ pub fn cursor_at_line_end(editor: &mut BorrowedWithFontSystem<Editor<'_>>) -> bo
             .map(|line| cursor.index == line.text().len())
             .unwrap_or(false)
     })
+}
+
+pub(crate) fn normalize_editor_cursor(editor: &mut BorrowedWithFontSystem<Editor<'_>>) {
+    let cursor = editor.cursor();
+    let mut new_cursor = cursor;
+
+    editor.with_buffer(|buffer| {
+        if buffer.lines.is_empty() {
+            new_cursor = Cursor {
+                line: 0,
+                index: 0,
+                affinity: cursor.affinity,
+            };
+            return;
+        }
+
+        if new_cursor.line >= buffer.lines.len() {
+            new_cursor.line = buffer.lines.len().saturating_sub(1);
+            new_cursor.index = buffer.lines[new_cursor.line].text().len();
+            return;
+        }
+
+        let line_text = buffer.lines[new_cursor.line].text();
+        if new_cursor.index > line_text.len() || !line_text.is_char_boundary(new_cursor.index) {
+            new_cursor.index = line_text.len();
+        }
+    });
+
+    if new_cursor != cursor {
+        editor.set_cursor(new_cursor);
+        editor.set_selection(Selection::None);
+    }
 }
 
 pub(crate) fn is_buffer_empty(buffer: &cosmic_text::Buffer) -> bool {
@@ -567,6 +600,7 @@ pub fn process_text_input_queues(
             editor, changes, ..
         } = &mut *buffer;
         let mut editor = editor.borrow_with(font_system);
+        normalize_editor_cursor(&mut editor);
         while let Some(action) = actions_queue.next() {
             match action {
                 TextInputAction::Submit => {
